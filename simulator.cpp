@@ -137,6 +137,7 @@ void BS_Execution(int t, vector<PeriodicTask> &periodicTasks, vector<AperiodicTa
                 executed[i] = true; // Marca a tarefa atual como executada
             }
             //cout << "Tarefa " << taskIdentifier << " concluída." << endl;
+            // talvez teria que colocar ele denovo na fila, acho q sim, mas ainda n tenho certeza de qual posição e de como tratar disso depois
         }
 
         cout << "COMEÇANDO A EXECUTAR TAREFAS APERIÓDICAS:" << endl;
