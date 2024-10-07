@@ -141,6 +141,11 @@ void BS_Execution(int &t, queue<Task>& tasks) {
 
         //lógica preempção
         //ver pro processador em idle
+        int count_tasks = 0;
+        for(int i = 0; i < tasks.size() ; i++){
+           if(task[i].remainingTime == 0) count_tasks++;
+        }
+        if ( count_tasks == tasks.size()) ganttDiagram[currentTime] = '.';
 
         if (currentTask.remainingTime > 0) { // também tenho que criar uma tarefa igual a essa na fila
             Task newTask = currentTask; 
@@ -151,11 +156,12 @@ void BS_Execution(int &t, queue<Task>& tasks) {
             newTask.ex = currentTask.ex;
             newTask.wt = currentTask.wt;
             newTask.isPeriodic = currentTask.isPeriodic;
+            newTask.diagram = currentTask.diagrem;
             srand(static_cast<unsigned int>(time(0)));
             newTask.id =  periodicTasks.size() + rand() % (300 - periodicTasks.size() + 1); // gera um id aleatório para essa tarefa
             tasks.push(newTask);   // Adiciona nova tarefa
         } else {
-            cout << "Tarefa ID " << currentTask.id << " concluída." << endl;
+            cout << "Tarefa "<< currentTask.diagram << "ID " << currentTask.id << " concluída." << endl;
             last_id = currentTask.id;
         }
         for(int i = 0; i < periodicTasks.size(); i++){
@@ -168,6 +174,7 @@ void BS_Execution(int &t, queue<Task>& tasks) {
             newTask.p = periodicTasks[i].p;
             newTask.ex = periodicTasks[i].ex;
             newTask.wt = periodicTasks[i].wt;
+            newTask.diagram = periodicTasks[i].diagram;
             newTask.isPeriodic = periodicTasks[i].isPeriodic;
             srand(static_cast<unsigned int>(time(0)));
             newTask.id =  periodicTasks.size() + rand() % (300 - periodicTasks.size() + 1); // gera um id aleatório para essa tarefa
@@ -176,7 +183,6 @@ void BS_Execution(int &t, queue<Task>& tasks) {
         }
         
         currentTime++;
-     
         order(tasks); // Reordena as tarefas na fila após cada execução se necessário.      
     }
 
