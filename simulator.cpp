@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <vector>
 #include <cstdlib>
-#include <ctime>
+#include <cctype>
 
 using namespace std;
 
@@ -42,7 +42,7 @@ void read( int &t, int &tp, int &ta, queue<Task>& tasks ) {
     Task task;
     cin >> task.a >> task.c;
     task.isPeriodic = false;
-    task.id = ( j + 2 ) * 5; // Para ter certeza que não vai dar conflito de id
+    task.id = j;
     task.p = 0;
     task.d = 0;
     task.remainingTime = task.c;
@@ -112,12 +112,13 @@ void BS_Execution( int &t, queue<Task>& tasks ) {
   vector<int> executionTimes(26, 0);     // Vetor de tempos de execução para cada letra ('A' a 'Z')
   vector<int> waitTime(26,-1);
   vector<int> totalTime(26,0);
+  vector<int> id;
+  int id_atual = tasks.size();
   int num_tasks = tasks.size();
   int currentTime = 0;
-  int last_id = -1;
   int preempcoes = 0;
   int context_change = 0;
-
+  
   vector<Task> periodicTasks; // Vetor para armazenar apenas as tarefas periódicas, nunca serão alteradas aqui, esse serve só para gerar eventos e novas tarefas
   vector<Task> aperiodicTasks;
   
@@ -131,8 +132,7 @@ void BS_Execution( int &t, queue<Task>& tasks ) {
     }
     tasks.push( currentTask );
   }
-  //cout << "Depois de rolar: " << endl;
-  //printTasks( tasks );
+
   int num_periodic = periodicTasks.size();
   while ( currentTime < t ) {
        if(tasks.empty()){
@@ -140,67 +140,66 @@ void BS_Execution( int &t, queue<Task>& tasks ) {
             if( currentTime > 0 && (currentTime +1)% (periodicTasks[i].p + periodicTasks[i].a) == 0 ) {
             // Criando nova instância da tarefa com os mesmos parâmetros
             Task newTask = periodicTasks[i];
-            newTask.id =  periodicTasks.size() + rand() % ( 300 - periodicTasks.size() + 1 ); // gera um id aleatório para essa tarefa
-            tasks.push( newTask ); // Adiciona nova tarefa
+            id_atual ++;
+            newTask.id = id_atual;
+            tasks.push( newTask ); 
             }
         }
         ganttDiagram[currentTime] = '.';
+        id.push_back(-1);
         currentTime++;
         continue;
         }
 
-    Task currentTask = tasks.front(); // Pega a tarefa mais antiga
+    Task currentTask = tasks.front(); 
     tasks.pop();
-    //cout << "peguei a tarefa " << currentTask.diagram << " no tempo: " << currentTime << endl;
+    id.push_back(currentTask.id);
     // verificação para a execução das aperiódicas:
     if(currentTask.isPeriodic == false){
         if(currentTask.a > currentTime){
             ganttDiagram[currentTime] = '.';
             for( int i = 0; i < periodicTasks.size(); i++ ) {
-                //cout << "tarefa "<< periodicTasks[i].diagram << "analisando"<< endl;
-                //cout << "tempo + 1= " << currentTime+1 << "período da tarefa: " << periodicTasks[i].p << endl;
                 if( currentTime > 0 && (currentTime + 1) % (periodicTasks[i].p + periodicTasks[i].a) == 0 ) {
                      // Criando nova instância da tarefa com os mesmos parâmetros
                     Task newTask = periodicTasks[i];
-                    newTask.id =  periodicTasks.size() + rand() % ( 300 - periodicTasks.size() + 1 ); // gera um id aleatório para essa tarefa
-                    tasks.push( newTask ); // Adiciona nova tarefa
-                    //cout << " criei a tarefa "<< newTask.diagram << endl;
+                    id_atual++;
+                    newTask.id = id_atual;  
+                    tasks.push( newTask ); 
                 } 
             }
             tasks.push( currentTask );
             if ( !tasks.empty() ) {
-                order( tasks ); // Reordena as tarefas na fila após cada execução se necessário.
+                order( tasks ); 
             }
             currentTime++;
             continue;
         }
     }
     
-    
     currentTask.remainingTime -= 1;
-    // adiciona a tarefa no diagrama final
     ganttDiagram[currentTime] = currentTask.diagram;
-   // Atualiza o tempo de execução da tarefa correspondente à letra
+    // Atualiza o tempo de execução da tarefa correspondente à letra
     int letterIndex = currentTask.diagram - 'A'; // Converte a letra para índice ('A' = 0)
     executionTimes[letterIndex]++; // Incrementa o tempo de execução
 
     //lógica preempção
     
     if ( currentTask.remainingTime > 0 ) { 
-      tasks.push( currentTask ); // Adiciona nova tarefa
-    } else {
-     // cout << "Tarefa " << currentTask.diagram << " ID " << currentTask.id << " concluída." << endl;
-      last_id = currentTask.id;
+      if(((currentTime +1 )%currentTask.p) > currentTask.d){// verifica tarefas em atraso
+        id_atual++;
+        currentTask.id = id_atual;
+        currentTask.diagram = tolower(currentTask.diagram);
+      }
+      tasks.push( currentTask ); 
     }
     for( int i = 0; i < periodicTasks.size(); i++ ) {
-        //cout << "tarefa "<< periodicTasks[i].diagram << "analisando"<< endl;
-        //cout << "tempo + 1= " << currentTime+1 << "período da tarefa: " << periodicTasks[i].p << endl;
       if( currentTime > 0 && (currentTime + 1) % (periodicTasks[i].p + periodicTasks[i].a) == 0 ) {
         // Criando nova instância da tarefa com os mesmos parâmetros
         Task newTask = periodicTasks[i];
-        newTask.id =  periodicTasks.size() + rand() % ( 300 - periodicTasks.size() + 1 ); // gera um id aleatório para essa tarefa
-        tasks.push( newTask ); // Adiciona nova tarefa
-        //cout << " criei a tarefa "<< newTask.diagram << endl;
+        id_atual++;
+        newTask.id = id_atual;
+        newTask.d = periodicTasks[i].d + periodicTasks[i].p;
+        tasks.push( newTask ); 
       }
     }
 
@@ -210,7 +209,7 @@ void BS_Execution( int &t, queue<Task>& tasks ) {
     //printTasks( tasks );
 
     if ( !tasks.empty() ) {
-      order( tasks ); // Reordena as tarefas na fila após cada execução se necessário.
+      order( tasks ); 
     }
    //cout << "Depois: " << currentTime << endl;
    //printTasks( tasks );
@@ -219,24 +218,23 @@ void BS_Execution( int &t, queue<Task>& tasks ) {
 char last_letter = ganttDiagram[0];
 cout << "Diagrama de Gantt: ";
 for (int i = 0; i < ganttDiagram.size(); i++) {
-    cout << ganttDiagram[i] << ' '; // Adicionando espaço entre os caracteres do diagrama
-    // Converte a letra atual para índice
+    cout << ganttDiagram[i] << ' '; 
     int letterIndex = ganttDiagram[i] - 'A'; // 'A' = 0, 'B' = 1, ..., 'Z' = 25
     waitTime[0] = 0;
-    // Verifica se a letra atual é diferente da última letra e se a letra já apareceu
     if (last_letter != ganttDiagram[i] && letterIndex !=0) {
-        waitTime[letterIndex] = i - waitTime[letterIndex]; // Armazena o índice da primeira aparição
+        waitTime[letterIndex] = i - waitTime[letterIndex]; 
     }
-
-    last_letter = ganttDiagram[i]; // Atualiza a última letra
+    last_letter = ganttDiagram[i]; 
 }
   cout << endl;
-
   for ( int i = 0; i < aperiodicTasks.size(); i++){
      waitTime[i+num_periodic] -= aperiodicTasks[i].a;
-  }
-  
+  } 
   //aqui tem q ter o a linha de num preempções e num trocas de contexto
+  for(int i =1 ; i < id.size(); i++){
+    if(id[i-1] != id[i]) context_change++;
+  }
+  cout << "trocas de contexto : "<< context_change + 1 << endl;
   cout << "tempos total de exec e de espera:" << endl;
   for(int i = 0; i < num_tasks; i++){
     if(i == 0) {cout << waitTime[i] + executionTimes[i] << " " << waitTime[i] << endl;}
@@ -244,7 +242,7 @@ for (int i = 0; i < ganttDiagram.size(); i++) {
   }
   cout << "Tempos de espera por tarefa (A-Z):" << endl;
     for (int i = 0; i < 26; i++) {
-        if (waitTime[i] != -1) { // Verifica se a letra foi registrada
+        if (waitTime[i] != -1) { 
             char taskLetter = 'A' + i;
             cout << taskLetter << ": " << waitTime[i] << " unidades de tempo" << endl;
         }
@@ -261,8 +259,7 @@ for (int i = 0; i < ganttDiagram.size(); i++) {
 
 int main() {
   int t, tp, ta;
-  srand( static_cast<unsigned int>( time( 0 ) ) );
-
+  
     while ( true ) {
         queue<Task> tasks;
         read( t, tp, ta, tasks );
@@ -274,6 +271,6 @@ int main() {
         BS_Execution( t, tasks );
         //  printTasks( tasks );
 
-        cout << endl; // Linha em branco entre os conjuntos de teste.
+        cout << endl;
     }
 }
