@@ -15,6 +15,7 @@ struct Task {
   bool isPeriodic;     // periódicas = true, aperiódicas = false
   int remainingTime;
   char diagram; // letra que representa a tarefa
+  int it; // tempo que a tarefa começou a sua execução
 };
 
 void read( int &t, int &tp, int &ta, queue<Task>& tasks ) {
@@ -61,11 +62,8 @@ void order( queue<Task>& tasks ) {
     Task currentTask = tasks.front();
     tasks.pop();
 
-    if ( currentTask.isPeriodic ) {
-      periodicTasks.push_back( currentTask );
-    } else {
-      aperiodicTasks.push_back( currentTask );
-    }
+    if ( currentTask.isPeriodic ) periodicTasks.push_back( currentTask );
+                            else aperiodicTasks.push_back( currentTask );
   }
 
   // Ordena as tarefas periódicas por período (crescente)
@@ -79,16 +77,11 @@ void order( queue<Task>& tasks ) {
   } );
 
   // Recoloca as tarefas ordenadas na fila
-  for ( const auto& task : periodicTasks ) {
-    tasks.push( task );
-  }
-
-  for ( const auto& task : aperiodicTasks ) {
-    tasks.push( task );
-  }
+  for ( const auto& task :  periodicTasks ) tasks.push( task );
+  for ( const auto& task : aperiodicTasks ) tasks.push( task );
 }
 
-void printTasks( queue<Task> &tasks ) { 
+void printTasks( queue<Task> &tasks ) {
   cout << "Tarefas:" << tasks.size() << endl;
 
   for ( int i = 0; i < tasks.size(); i++ ) {
@@ -109,168 +102,150 @@ void printTasks( queue<Task> &tasks ) {
 
 void BS_Execution( int &t, queue<Task>& tasks ) {
   vector<char> ganttDiagram( t + 1 ); // Diagrama de Gantt
-  vector<int> executionTimes(26, 0);     // Vetor de tempos de execução para cada letra ('A' a 'Z')
-  vector<int> waitTime(26,-1);
-  vector<int> totalTime(26,0);
+  vector<int> executionTimes( 26, 0 );   // Vetor de tempos de execução para cada letra ('A' a 'Z')
+  vector<int> waitTime( 26, -1 );
+  vector<int> totalTime( 26, 0 );
   vector<int> id;
   int id_atual = tasks.size();
   int num_tasks = tasks.size();
   int currentTime = 0;
   int preempcoes = 0;
   int context_change = 0;
-  
-  vector<Task> periodicTasks; // Vetor para armazenar apenas as tarefas periódicas, nunca serão alteradas aqui, esse serve só para gerar eventos e novas tarefas
+
+  // Vetor para armazenar apenas as tarefas periódicas, nunca serão alteradas aqui,
+  // esse serve só para gerar eventos e novas tarefas
+  vector<Task> periodicTasks;
   vector<Task> aperiodicTasks;
-  
-  for( int i = 0; i < tasks.size(); i++ ) {
+
+  while( ! tasks.empty() ) {
     Task currentTask = tasks.front();
     tasks.pop();
-    if ( currentTask.isPeriodic ) {
-      periodicTasks.push_back( currentTask );
-    }else{
-      aperiodicTasks.push_back( currentTask );
-    }
-    tasks.push( currentTask );
+    if ( currentTask.isPeriodic ) periodicTasks.push_back( currentTask );
+                            else aperiodicTasks.push_back( currentTask );
   }
 
   int num_periodic = periodicTasks.size();
   while ( currentTime < t ) {
-       if(tasks.empty()){
-         for( int i = 0; i < periodicTasks.size(); i++ ) {
-            if( currentTime > 0 && (currentTime +1)% (periodicTasks[i].p + periodicTasks[i].a) == 0 ) {
-            // Criando nova instância da tarefa com os mesmos parâmetros
-            Task newTask = periodicTasks[i];
-            id_atual ++;
-            newTask.id = id_atual;
-            tasks.push( newTask ); 
-            }
-        }
-        ganttDiagram[currentTime] = '.';
-        id.push_back(-1);
-        currentTime++;
-        continue;
-        }
 
-    Task currentTask = tasks.front(); 
-    tasks.pop();
-    id.push_back(currentTask.id);
-    // verificação para a execução das aperiódicas:
-    if(currentTask.isPeriodic == false){
-        if(currentTask.a > currentTime){
-            ganttDiagram[currentTime] = '.';
-            for( int i = 0; i < periodicTasks.size(); i++ ) {
-                if( currentTime > 0 && (currentTime + 1) % (periodicTasks[i].p + periodicTasks[i].a) == 0 ) {
-                     // Criando nova instância da tarefa com os mesmos parâmetros
-                    Task newTask = periodicTasks[i];
-                    id_atual++;
-                    newTask.id = id_atual;  
-                    tasks.push( newTask ); 
-                } 
-            }
-            tasks.push( currentTask );
-            if ( !tasks.empty() ) {
-                order( tasks ); 
-            }
-            currentTime++;
-            continue;
-        }
-    }
-    
-    currentTask.remainingTime -= 1;
-    ganttDiagram[currentTime] = currentTask.diagram;
-    // Atualiza o tempo de execução da tarefa correspondente à letra
-    int letterIndex = currentTask.diagram - 'A'; // Converte a letra para índice ('A' = 0)
-    executionTimes[letterIndex]++; // Incrementa o tempo de execução
-
-    //lógica preempção
-    
-    if ( currentTask.remainingTime > 0 ) { 
-      if(((currentTime +1 )%currentTask.p) > currentTask.d){// verifica tarefas em atraso
-        id_atual++;
-        currentTask.id = id_atual;
-        currentTask.diagram = tolower(currentTask.diagram);
-      }
-      tasks.push( currentTask ); 
-    }
-    for( int i = 0; i < periodicTasks.size(); i++ ) {
-      if( currentTime > 0 && (currentTime + 1) % (periodicTasks[i].p + periodicTasks[i].a) == 0 ) {
+    for( int i = 0; i < periodicTasks.size(); i++ )
+      if( currentTime % ( periodicTasks[i].p + periodicTasks[i].a ) == 0 ) {
         // Criando nova instância da tarefa com os mesmos parâmetros
         Task newTask = periodicTasks[i];
-        id_atual++;
+        id_atual ++;
         newTask.id = id_atual;
-        newTask.d = periodicTasks[i].d + periodicTasks[i].p;
-        tasks.push( newTask ); 
+        tasks.push( newTask );
       }
+
+    for( int i = 0; i < aperiodicTasks.size(); i++ )
+      if( currentTime == aperiodicTasks[i].a ) {
+        // Criando nova instância da tarefa com os mesmos parâmetros
+        Task newTask = aperiodicTasks[i];
+        tasks.push( newTask );
+      }
+
+    order( tasks );
+
+    if ( tasks.empty() ) {
+      ganttDiagram[currentTime] = '.';
+      id.push_back( -1 );
+      currentTime++;
+      continue;
     }
 
+    Task currentTask = tasks.front();
+    tasks.pop();
+    id.push_back( currentTask.id );
+    if(currentTask.remainingTime == currentTask.c) currentTask.it = currentTime;
+    ganttDiagram[currentTime] = currentTask.diagram;
+    currentTask.remainingTime -= 1;
+    currentTask.ex ++; // SOMANDO UM NA EXECUÇÃO
+    //cout << " somei um na execução da tarefa: " << currentTask.diagram << endl;
+
+    if ( currentTask.isPeriodic && (currentTask.it + currentTask.c) > /*deadline*/) { // verifica tarefas em atraso
+      ganttDiagram[currentTime] = tolower( currentTask.diagram );
+    }
+
+    /////////////////////////////// SOMANDO UM NO WAIT TIME DE CADA TAREFA
+    for(int i =0; i < tasks.size(); i++){
+        Task taks_a = tasks.front();
+        tasks.pop();
+        taks_a.wt ++;
+        //cout << "somei um na espera da tarefa: " << taks_a.diagram << endl;
+        tasks.push(taks_a);
+    }
+
+    if ( currentTask.remainingTime > 0 ) tasks.push( currentTask );
+    else{ // se a tarefa acabou ISSO AQUI N TA NO LUGAR CERTO
+      cout << "a tarefa : "<< currentTask.diagram << "terminou!" <<endl;
+      int letterIndex = toupper( currentTask.diagram ) - 'A'; // Converte a letra para índice ('A' = 0)
+      executionTimes[letterIndex] += currentTask.ex;
+      waitTime[letterIndex] += currentTask.wt;
+      waitTime[0] = 0;
+    }
+for(int i = 0; i < num_tasks; i++){
+  cout << "posição tempo de espera : " << i << " valor: " <<  waitTime[i] << endl;
+  cout << "posição tempo execução : " << i << " valor: " <<  executionTimes[i] << endl;
+}
 
     currentTime++;
     cout << "Tempo: " << currentTime << endl;
     //printTasks( tasks );
-
-    if ( !tasks.empty() ) {
-      order( tasks ); 
-    }
-   //cout << "Depois: " << currentTime << endl;
-   //printTasks( tasks );
-
   }
-char last_letter = ganttDiagram[0];
-cout << "Diagrama de Gantt: ";
-for (int i = 0; i < ganttDiagram.size(); i++) {
-    cout << ganttDiagram[i] << ' '; 
-    int letterIndex = ganttDiagram[i] - 'A'; // 'A' = 0, 'B' = 1, ..., 'Z' = 25
-    waitTime[0] = 0;
-    if (last_letter != ganttDiagram[i] && letterIndex !=0) {
-        waitTime[letterIndex] = i - waitTime[letterIndex]; 
-    }
-    last_letter = ganttDiagram[i]; 
-}
+
+  cout << "Diagrama de Gantt: ";
+  for ( int i = 0; i < ganttDiagram.size(); i++ ) {
+    cout << ganttDiagram[i] << ' ';
+  }
   cout << endl;
-  for ( int i = 0; i < aperiodicTasks.size(); i++){
-     waitTime[i+num_periodic] -= aperiodicTasks[i].a;
-  } 
-  //aqui tem q ter o a linha de num preempções e num trocas de contexto
-  for(int i =1 ; i < id.size(); i++){
-    if(id[i-1] != id[i]) context_change++;
+
+  for ( int i = 0; i < aperiodicTasks.size(); i++ ) {
+    waitTime[i + num_periodic] -= aperiodicTasks[i].a;
   }
-  cout << "trocas de contexto : "<< context_change + 1 << endl;
+  //aqui tem q ter o a linha de num preempções e num trocas de contexto
+  for( int i = 1 ; i < id.size(); i++ ) {
+    if( id[i - 1] != id[i] ) context_change++;
+  }
+
+  if( ganttDiagram[t - 1] == '.' ) context_change++;
+
+  cout << "trocas de contexto : " << context_change << endl;
   cout << "tempos total de exec e de espera:" << endl;
-  for(int i = 0; i < num_tasks; i++){
-    if(i == 0) {cout << waitTime[i] + executionTimes[i] << " " << waitTime[i] << endl;}
-    else{ cout << waitTime[i] + executionTimes[i] -1 << " " << waitTime[i] -1 << endl;}
+  for( int i = 0; i < num_tasks; i++ ) {
+    if( i == 0 ) {
+      cout << waitTime[i] + executionTimes[i] << " " << waitTime[i] << endl;
+    } else {
+      cout << waitTime[i] + executionTimes[i] - 1 << " " << waitTime[i] - 1 << endl;
+    }
   }
   cout << "Tempos de espera por tarefa (A-Z):" << endl;
-    for (int i = 0; i < 26; i++) {
-        if (waitTime[i] != -1) { 
-            char taskLetter = 'A' + i;
-            cout << taskLetter << ": " << waitTime[i] << " unidades de tempo" << endl;
-        }
+  for ( int i = 0; i < 26; i++ ) {
+    if ( waitTime[i] != -1 ) {
+      char taskLetter = 'A' + i;
+      cout << taskLetter << ": " << waitTime[i] << " unidades de tempo" << endl;
     }
+  }
 
- cout << "Tempos de execução por tarefa (A-Z):" << endl;
-    for (int i = 0; i < 26; i++) {
-        if (executionTimes[i] > 0) {
-            char taskLetter = 'A' + i;
-            cout << taskLetter << ": " << executionTimes[i] << " unidades de tempo" << endl;
-        }
+  cout << "Tempos de execução por tarefa (A-Z):" << endl;
+  for ( int i = 0; i < 26; i++ ) {
+    if ( executionTimes[i] > 0 ) {
+      char taskLetter = 'A' + i;
+      cout << taskLetter << ": " << executionTimes[i] << " unidades de tempo" << endl;
     }
+  }
 }
 
 int main() {
   int t, tp, ta;
-  
-    while ( true ) {
-        queue<Task> tasks;
-        read( t, tp, ta, tasks );
 
-        if ( t == 0 && tp == 0 && ta == 0 ) {
-            break;
-        }
+  while ( true ) {
+    queue<Task> tasks;
+    read( t, tp, ta, tasks );
 
-        BS_Execution( t, tasks );
-        //  printTasks( tasks );
+    if ( t == 0 && tp == 0 && ta == 0 ) break;
 
-        cout << endl;
-    }
+    BS_Execution( t, tasks );
+    //  printTasks( tasks );
+
+    cout << endl;
+  }
 }
