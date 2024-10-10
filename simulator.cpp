@@ -109,25 +109,31 @@ void printTasks( queue<Task> &tasks ) {
 
 void BS_Execution( int &t, queue<Task>& tasks ) {
   vector<char> ganttDiagram( t + 1 ); // Diagrama de Gantt
-  vector<int> executionTimes(26, 0);     // Vetor de tempos de execução para cada letra ('A' a 'Z'
+  vector<int> executionTimes(26, 0);     // Vetor de tempos de execução para cada letra ('A' a 'Z')
+  vector<int> waitTime(26,-1);
+  vector<int> totalTime(26,0);
+  int num_tasks = tasks.size();
   int currentTime = 0;
   int last_id = -1;
   int preempcoes = 0;
   int context_change = 0;
 
   vector<Task> periodicTasks; // Vetor para armazenar apenas as tarefas periódicas, nunca serão alteradas aqui, esse serve só para gerar eventos e novas tarefas
-
+  vector<Task> aperiodicTasks;
+  
   for( int i = 0; i < tasks.size(); i++ ) {
     Task currentTask = tasks.front();
     tasks.pop();
     if ( currentTask.isPeriodic ) {
       periodicTasks.push_back( currentTask );
+    }else{
+      aperiodicTasks.push_back( currentTask );
     }
     tasks.push( currentTask );
   }
   //cout << "Depois de rolar: " << endl;
   //printTasks( tasks );
-
+  int num_periodic = periodicTasks.size();
   while ( currentTime < t ) {
        if(tasks.empty()){
          for( int i = 0; i < periodicTasks.size(); i++ ) {
@@ -210,12 +216,39 @@ void BS_Execution( int &t, queue<Task>& tasks ) {
    //printTasks( tasks );
 
   }
-
-  cout << "Diagrama de Gantt: ";
-  for ( int i = 0; i < ganttDiagram.size(); i++ ) {
+char last_letter = ganttDiagram[0];
+cout << "Diagrama de Gantt: ";
+for (int i = 0; i < ganttDiagram.size(); i++) {
     cout << ganttDiagram[i] << ' '; // Adicionando espaço entre os caracteres do diagrama
-  }
+    // Converte a letra atual para índice
+    int letterIndex = ganttDiagram[i] - 'A'; // 'A' = 0, 'B' = 1, ..., 'Z' = 25
+    waitTime[0] = 0;
+    // Verifica se a letra atual é diferente da última letra e se a letra já apareceu
+    if (last_letter != ganttDiagram[i] && letterIndex !=0) {
+        waitTime[letterIndex] = i - waitTime[letterIndex]; // Armazena o índice da primeira aparição
+    }
+
+    last_letter = ganttDiagram[i]; // Atualiza a última letra
+}
   cout << endl;
+
+  for ( int i = 0; i < aperiodicTasks.size(); i++){
+     waitTime[i+num_periodic] -= aperiodicTasks[i].a;
+  }
+  
+  //aqui tem q ter o a linha de num preempções e num trocas de contexto
+  cout << "tempos total de exec e de espera:" << endl;
+  for(int i = 0; i < num_tasks; i++){
+    if(i == 0) {cout << waitTime[i] + executionTimes[i] << " " << waitTime[i] << endl;}
+    else{ cout << waitTime[i] + executionTimes[i] -1 << " " << waitTime[i] -1 << endl;}
+  }
+  cout << "Tempos de espera por tarefa (A-Z):" << endl;
+    for (int i = 0; i < 26; i++) {
+        if (waitTime[i] != -1) { // Verifica se a letra foi registrada
+            char taskLetter = 'A' + i;
+            cout << taskLetter << ": " << waitTime[i] << " unidades de tempo" << endl;
+        }
+    }
 
  cout << "Tempos de execução por tarefa (A-Z):" << endl;
     for (int i = 0; i < 26; i++) {
